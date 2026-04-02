@@ -1,0 +1,177 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>타자 속도 게임</title>
+
+<style>
+body {
+  font-family: Arial;
+  background: #f0f4f8;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding: 2rem;
+}
+.card {
+  background: white;
+  padding: 1.5rem;
+  margin: 1rem 0;
+  border-radius: 12px;
+  box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+  width: 90%;
+  max-width: 400px;
+}
+input, button {
+  width: 100%;
+  padding: 0.5rem;
+  margin: 5px 0;
+}
+.rankItem {
+  background: #eef2ff;
+  margin: 5px 0;
+  padding: 6px;
+}
+</style>
+
+<script src="https://www.google.com/recaptcha/api.js" async defer></script>
+</head>
+
+<body>
+
+<h1>타자 속도 게임</h1>
+
+<div class="card">
+  <div id="game">게임 시작 전</div>
+  <input id="wordInput" disabled>
+
+  <div class="g-recaptcha"
+       data-sitekey="6LcJCKMsAAAAADpFGmW2dWhnJF4gg0cdK8b4hQDl"></div>
+
+  <button onclick="startGame()">게임 시작</button>
+  <div id="result"></div>
+</div>
+
+<div class="card">
+  <input id="nickname" placeholder="닉네임">
+  <button onclick="submitScore()">점수 제출</button>
+</div>
+
+<h2>랭킹</h2>
+<ol id="ranking"></ol>
+
+<script>
+let words = ["사과","바나나","컴퓨터","학교","게임","코드","로봇","타자"];
+let currentWord;
+let wordStart;
+let speeds = [];
+let count = 0;
+
+// 시작
+function startGame(){
+  if(!grecaptcha.getResponse()){
+    alert("로봇 확인 먼저!");
+    return;
+  }
+
+  speeds = [];
+  count = 0;
+
+  document.getElementById("wordInput").disabled = false;
+  document.getElementById("wordInput").focus();
+
+  nextWord();
+}
+
+// 다음 단어
+function nextWord(){
+  if(count >= 5){
+    endGame();
+    return;
+  }
+
+  currentWord = words[Math.floor(Math.random()*words.length)];
+  document.getElementById("game").innerText = currentWord;
+  document.getElementById("wordInput").value = "";
+
+  wordStart = Date.now();
+  count++;
+}
+
+// 입력
+document.getElementById("wordInput").addEventListener("keydown", e=>{
+  if(e.key === "Enter"){
+    if(e.target.value === currentWord){
+      let t = (Date.now() - wordStart) / 1000;
+      speeds.push(currentWord.length / t);
+      nextWord();
+    } else {
+      alert("틀림!");
+      e.target.value = "";
+    }
+  }
+});
+
+// 종료
+function endGame(){
+  document.getElementById("wordInput").disabled = true;
+
+  let avg = (speeds.reduce((a,b)=>a+b,0)/speeds.length).toFixed(2);
+  document.getElementById("result").innerText = "평균 타수: " + avg;
+}
+
+// 제출
+async function submitScore(){
+  let name = document.getElementById("nickname").value.trim();
+  if(!name) return alert("닉네임!");
+
+  let match = document.getElementById("result").innerText.match(/[\d.]+/);
+  if(!match) return alert("게임 먼저!");
+
+  let avg = parseFloat(match[0]);
+
+  let token = grecaptcha.getResponse();
+  if(!token) return alert("리캡챠!");
+
+  let res = await fetch("/verify", {
+    method: "POST",
+    headers: {"Content-Type":"application/json"},
+    body: JSON.stringify({
+      token: token,
+      nickname: name,
+      score: avg
+    })
+  });
+
+  let data = await res.json();
+
+  if(data.ok){
+    alert("제출 성공!");
+    loadRanking();
+  } else {
+    alert("로봇 의심됨!");
+  }
+}
+
+// 랭킹
+async function loadRanking(){
+  let res = await fetch("/ranking");
+  let scores = await res.json();
+
+  let list = document.getElementById("ranking");
+  list.innerHTML = "";
+
+  scores.forEach((s,i)=>{
+    let li = document.createElement("li");
+    li.className = "rankItem";
+    li.innerText = `${i+1}. ${s.nickname} - ${s.score}`;
+    list.appendChild(li);
+  });
+}
+
+loadRanking();
+</script>
+
+</body>
+</html>
