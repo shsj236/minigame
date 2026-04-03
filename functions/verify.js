@@ -13,11 +13,9 @@ export async function onRequestPost(context) {
 
   const result = await googleRes.json();
 
-  if (!result.success) {
-    return new Response(JSON.stringify({ ok: false }), {
-      headers: { "Content-Type": "application/json" }
-    });
-  }
+ return new Response(JSON.stringify(result), {
+  headers: { "Content-Type": "application/json" }
+});
 
   let scores = JSON.parse(await env.SCORES.get("list") || "[]");
   scores.push({ nickname, score });
