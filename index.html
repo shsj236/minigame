@@ -46,7 +46,7 @@ input, button {
   <div id="game">게임 시작 전</div>
   <input id="wordInput" disabled placeholder="Enter로 입력">
 
-  <!-- 🔥 reCAPTCHA는 제출용 -->
+  <!-- 🔥 새 site key 적용 -->
   <div class="g-recaptcha"
        data-sitekey="6LfPC6UsAAAAAMWAsOX9j9qmOr-0LX9YdQ5J_Vsi"></div>
 
@@ -69,7 +69,7 @@ let wordStart;
 let speeds = [];
 let count = 0;
 
-// ✅ 게임 시작 (reCAPTCHA 제거됨)
+// 게임 시작
 function startGame(){
   speeds = [];
   count = 0;
@@ -118,13 +118,13 @@ function endGame(){
 
   let avg = (speeds.reduce((a,b)=>a+b,0)/speeds.length).toFixed(2);
   document.getElementById("result").innerText =
-    "평균 타수: " + avg + " (제출 전에 로봇 확인 해주세요!)";
+    "평균 타수: " + avg + " (제출 전에 로봇 확인!)";
 
-  // 🔥 이전 토큰 제거
+  // 🔥 여기서는 reset 유지 (이전 토큰 제거용)
   grecaptcha.reset();
 }
 
-// 점수 제출 (🔥 핵심 수정됨)
+// 🔥 점수 제출 (완전 수정됨)
 async function submitScore(){
   let name = document.getElementById("nickname").value.trim();
   if(!name) return alert("닉네임 입력!");
@@ -134,34 +134,40 @@ async function submitScore(){
 
   let avg = parseFloat(match[0]);
 
-  // 🔥 제출 직전에 토큰 가져오기
+  // 🔥 최신 토큰 가져오기
   let token = grecaptcha.getResponse();
 
   if(!token){
-    alert("로봇 확인 후 제출해줘!");
+    alert("로봇 확인 해줘!");
     return;
   }
 
-  let res = await fetch("/verify", {
-    method: "POST",
-    headers: {"Content-Type":"application/json"},
-    body: JSON.stringify({
-      token: token,
-      nickname: name,
-      score: avg
-    })
-  });
+  try {
+    let res = await fetch("/verify", {
+      method: "POST",
+      headers: {"Content-Type":"application/json"},
+      body: JSON.stringify({
+        token: token,
+        nickname: name,
+        score: avg
+      })
+    });
 
-  let data = await res.json();
+    let data = await res.json();
 
-  if(data.ok){
-    alert("제출 성공!");
-    loadRanking();
-    grecaptcha.reset(); // 다음 제출 대비
-  } else {
-    alert("로봇 의심됨!");
-    grecaptcha.reset();
+    if(data.ok){
+      alert("제출 성공!");
+      loadRanking();
+    } else {
+      alert("로봇 의심됨!");
+    }
+
+  } catch (e) {
+    alert("서버 오류!");
   }
+
+  // 🔥 요청 끝난 후에만 reset
+  grecaptcha.reset();
 }
 
 // 랭킹 불러오기
