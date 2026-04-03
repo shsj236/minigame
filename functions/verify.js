@@ -13,8 +13,16 @@ export async function onRequestPost(context) {
 
   const result = await googleRes.json();
 
+  // 🔥 디버깅용 로그
+  console.log("reCAPTCHA result:", result);
+
+  // 🔥 실패 이유 그대로 반환
   if (!result.success) {
-    return new Response(JSON.stringify({ ok: false }), {
+    return new Response(JSON.stringify({
+      ok: false,
+      error: result["error-codes"],
+      hostname: result.hostname
+    }), {
       headers: { "Content-Type": "application/json" }
     });
   }
