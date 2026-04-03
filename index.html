@@ -44,10 +44,10 @@ input, button {
 
 <div class="card">
   <div id="game">게임 시작 전</div>
-  <input id="wordInput" disabled>
+  <input id="wordInput" disabled placeholder="Enter로 입력">
 
   <div class="g-recaptcha"
-       data-sitekey="6LcJCKMsAAAAADpFGmW2dWhnJF4gg0cdK8b4hQDl"></div>
+       data-sitekey="6LcoCaUsAAAAAJ0ave0Yto5pSvfbJmUjNaPfdCV7"></div>
 
   <button onclick="startGame()">게임 시작</button>
   <div id="result"></div>
@@ -68,7 +68,7 @@ let wordStart;
 let speeds = [];
 let count = 0;
 
-// 시작
+// 게임 시작
 function startGame(){
   if(!grecaptcha.getResponse()){
     alert("로봇 확인 먼저!");
@@ -99,10 +99,12 @@ function nextWord(){
   count++;
 }
 
-// 입력
+// 입력 처리
 document.getElementById("wordInput").addEventListener("keydown", e=>{
   if(e.key === "Enter"){
-    if(e.target.value === currentWord){
+    let val = e.target.value.trim();
+
+    if(val === currentWord){
       let t = (Date.now() - wordStart) / 1000;
       speeds.push(currentWord.length / t);
       nextWord();
@@ -113,7 +115,7 @@ document.getElementById("wordInput").addEventListener("keydown", e=>{
   }
 });
 
-// 종료
+// 게임 종료
 function endGame(){
   document.getElementById("wordInput").disabled = true;
 
@@ -121,10 +123,10 @@ function endGame(){
   document.getElementById("result").innerText = "평균 타수: " + avg;
 }
 
-// 제출
+// 점수 제출
 async function submitScore(){
   let name = document.getElementById("nickname").value.trim();
-  if(!name) return alert("닉네임!");
+  if(!name) return alert("닉네임 입력!");
 
   let match = document.getElementById("result").innerText.match(/[\d.]+/);
   if(!match) return alert("게임 먼저!");
@@ -132,7 +134,7 @@ async function submitScore(){
   let avg = parseFloat(match[0]);
 
   let token = grecaptcha.getResponse();
-  if(!token) return alert("리캡챠!");
+  if(!token) return alert("리캡챠 확인!");
 
   let res = await fetch("/verify", {
     method: "POST",
@@ -154,7 +156,7 @@ async function submitScore(){
   }
 }
 
-// 랭킹
+// 랭킹 불러오기
 async function loadRanking(){
   let res = await fetch("/ranking");
   let scores = await res.json();
@@ -170,6 +172,7 @@ async function loadRanking(){
   });
 }
 
+// 초기 로드
 loadRanking();
 </script>
 
