@@ -46,6 +46,7 @@ input, button {
   <div id="game">게임 시작 전</div>
   <input id="wordInput" disabled placeholder="Enter로 입력">
 
+  <!-- 🔥 reCAPTCHA는 제출용 -->
   <div class="g-recaptcha"
        data-sitekey="6LfPC6UsAAAAAMWAsOX9j9qmOr-0LX9YdQ5J_Vsi"></div>
 
@@ -68,18 +69,14 @@ let wordStart;
 let speeds = [];
 let count = 0;
 
-// 게임 시작
+// ✅ 게임 시작 (reCAPTCHA 제거됨)
 function startGame(){
-  if(!grecaptcha.getResponse()){
-    alert("로봇 확인 먼저!");
-    return;
-  }
-
   speeds = [];
   count = 0;
 
   document.getElementById("wordInput").disabled = false;
   document.getElementById("wordInput").focus();
+  document.getElementById("result").innerText = "";
 
   nextWord();
 }
@@ -120,10 +117,14 @@ function endGame(){
   document.getElementById("wordInput").disabled = true;
 
   let avg = (speeds.reduce((a,b)=>a+b,0)/speeds.length).toFixed(2);
-  document.getElementById("result").innerText = "평균 타수: " + avg;
+  document.getElementById("result").innerText =
+    "평균 타수: " + avg + " (제출 전에 로봇 확인 해주세요!)";
+
+  // 🔥 이전 토큰 제거
+  grecaptcha.reset();
 }
 
-// 점수 제출
+// 점수 제출 (🔥 핵심 수정됨)
 async function submitScore(){
   let name = document.getElementById("nickname").value.trim();
   if(!name) return alert("닉네임 입력!");
@@ -133,8 +134,13 @@ async function submitScore(){
 
   let avg = parseFloat(match[0]);
 
+  // 🔥 제출 직전에 토큰 가져오기
   let token = grecaptcha.getResponse();
-  if(!token) return alert("리캡챠 확인!");
+
+  if(!token){
+    alert("로봇 확인 후 제출해줘!");
+    return;
+  }
 
   let res = await fetch("/verify", {
     method: "POST",
@@ -151,8 +157,10 @@ async function submitScore(){
   if(data.ok){
     alert("제출 성공!");
     loadRanking();
+    grecaptcha.reset(); // 다음 제출 대비
   } else {
     alert("로봇 의심됨!");
+    grecaptcha.reset();
   }
 }
 
