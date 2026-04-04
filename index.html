@@ -1,4 +1,4 @@
-]<!DOCTYPE html>
+<!DOCTYPE html>
 <html lang="ko">
 <head>
 <meta charset="UTF-8">
@@ -35,7 +35,7 @@ input,button { width:100%; margin:5px 0; padding:8px; }
 <div class="card">
   <input id="name" placeholder="닉네임">
 
-  <!-- 🔥 캡차 -->
+  <!-- 🔥 reCAPTCHA -->
   <div id="captchaBox" style="display:none;">
     <div class="g-recaptcha"
       data-sitekey="6LcEAKYsAAAAAJ7zew0wLpS2ha5JfKLX846LVkoK">
@@ -71,7 +71,7 @@ function next(){
   count++;
 }
 
-// 입력
+// 입력 처리
 document.getElementById("input").addEventListener("keydown",e=>{
   if(e.key==="Enter"){
     if(e.target.value===current){
@@ -92,14 +92,14 @@ function endGame(){
   let avg=(speeds.reduce((a,b)=>a+b,0)/speeds.length).toFixed(2);
   document.getElementById("result").innerText="속도: "+avg;
 
-  // 🔥 여기서 캡차 보이게
+  // 🔥 캡차 표시
   document.getElementById("captchaBox").style.display="block";
 }
 
-// 제출
+// 점수 제출 (🔥 핵심 수정 완료)
 async function submitScore(){
 
-  let token=grecaptcha.getResponse();
+  let token = grecaptcha.getResponse();
 
   if(!token){
     alert("로봇 확인 먼저!");
@@ -109,25 +109,32 @@ async function submitScore(){
   let name=document.getElementById("name").value;
   let score=document.getElementById("result").innerText.match(/[\d.]+/)[0];
 
-  let res=await fetch("/verify",{
-    method:"POST",
-    headers:{"Content-Type":"application/json"},
-    body:JSON.stringify({
-      token,
-      nickname:name,
-      score:parseFloat(score)
-    })
-  });
+  try {
+    // 🔥 여기 핵심 변경됨 (/functions/verify)
+    let res=await fetch("/functions/verify",{
+      method:"POST",
+      headers:{"Content-Type":"application/json"},
+      body:JSON.stringify({
+        token,
+        nickname:name,
+        score:parseFloat(score)
+      })
+    });
 
-  let data=await res.json();
+    let data=await res.json();
 
-  if(data.ok){
-    alert("성공!");
-  }else{
-    alert("실패");
+    if(data.ok){
+      alert("성공!");
+    }else{
+      alert("실패");
+      console.log(data);
+    }
+
+  } catch(e){
+    alert("서버 오류");
   }
 
-  // 🔥 무조건 마지막에 reset
+  // 🔥 마지막에만 reset
   grecaptcha.reset();
 }
 </script>
