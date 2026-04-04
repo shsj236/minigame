@@ -2,56 +2,62 @@ export async function onRequestPost(context) {
   const { request, env } = context;
 
   try {
-    const { token, nickname, score } = await request.json();
+    const body = await request.json();
 
-    // 🔥 토큰 없으면 바로 실패
+    console.log("BODY:", body);
+
+    const token = body.token;
+    const nickname = body.nickname;
+    const score = body.score;
+
     if (!token) {
-      return new Response(JSON.stringify({ ok: false, error: "no-token" }), {
-        headers: { "Content-Type": "application/json" }
-      });
+      return new Response(JSON.stringify({
+        ok: false,
+        error: "no-token"
+      }), { headers: { "Content-Type": "application/json" }});
     }
 
-    // 🔥 Google에 검증 요청
+    // 🔥 Google 검증
     const formData = new URLSearchParams();
     formData.append("secret", env.RECAPTCHA_SECRET);
     formData.append("response", token);
 
     const googleRes = await fetch(
       "https://www.google.com/recaptcha/api/siteverify",
-      {
-        method: "POST",
-        body: formData
-      }
+      { method: "POST", body: formData }
     );
 
     const result = await googleRes.json();
 
-    // 🔥 디버깅 (필요하면 로그 확인 가능)
-    console.log("reCAPTCHA:", result);
+    console.log("GOOGLE:", result);
 
-    // 🔥 실패 시 이유까지 반환
     if (!result.success) {
       return new Response(JSON.stringify({
         ok: false,
-        error: result["error-codes"],
-        hostname: result.hostname
-      }), {
-        headers: { "Content-Type": "application/json" }
-      });
+        error: result["error-codes"]
+      }), { headers: { "Content-Type": "application/json" }});
     }
 
-    // 🔥 점수 저장 (KV)
-    let scores = JSON.parse(await env.SCORES.get("list") || "[]");
+    // 🔥 KV 저장 부분 (여기서 터질 가능성 높음)
+    let scores = [];
+
+    try {
+      const data = await env.SCORES.get("list");
+      scores = JSON.parse(data || "[]");
+    } catch (e) {
+      console.log("KV READ ERROR:", e);
+      scores = [];
+    }
 
     scores.push({ nickname, score });
 
-    // 높은 점수 순 정렬
     scores.sort((a, b) => b.score - a.score);
 
-    // 최대 10개 유지 (선택)
-    scores = scores.slice(0, 10);
-
-    await env.SCORES.put("list", JSON.stringify(scores));
+    try {
+      await env.SCORES.put("list", JSON.stringify(scores));
+    } catch (e) {
+      console.log("KV WRITE ERROR:", e);
+    }
 
     return new Response(JSON.stringify({ ok: true }), {
       headers: { "Content-Type": "application/json" }
@@ -60,7 +66,7 @@ export async function onRequestPost(context) {
   } catch (e) {
     return new Response(JSON.stringify({
       ok: false,
-      error: "server-error"
+      error: e.toString()
     }), {
       headers: { "Content-Type": "application/json" }
     });
